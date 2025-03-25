@@ -2,6 +2,7 @@ package com.sprint.demo.spring_blog.repository.file;
 
 import com.sprint.demo.spring_blog.entity.User;
 import com.sprint.demo.spring_blog.repository.UserRepo;
+import org.springframework.stereotype.Repository;
 
 import java.io.BufferedWriter;
 import java.io.FileOutputStream;
@@ -14,9 +15,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Repository
 public class FileUserRepo implements UserRepo {
     private final Path DIRECTORY;
-    private final String EXTENSION = ".txt";
+    private final String EXTENSION = ".ser";
 
     public FileUserRepo() {
         // 경로 설정(정의), repositoryToFile/{도메인 class명}
@@ -39,21 +41,14 @@ public class FileUserRepo implements UserRepo {
     @Override
     public User saveUser(User user) {
         Path path = resolvePath(user.getId());
-//        try (
-//                FileOutputStream fos = new FileOutputStream(path.toFile());
-//                ObjectOutputStream oos = new ObjectOutputStream(fos)
-//        ) {
-//            oos.writeObject(user);
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
+        // fos, oos로 각 객체를 하나의 .ser 파일에 직렬화(이진 바이너리(바이트 단위로 표현된 데이터))해서 저장
         try (
-                BufferedWriter writer = Files.newBufferedWriter(path))
-        {
-            writer.write(String.valueOf(user));
-            writer.newLine(); // 줄바꿈
+                FileOutputStream fos = new FileOutputStream(path.toFile());
+                ObjectOutputStream oos = new ObjectOutputStream(fos)
+        ) {
+            oos.writeObject(user);
         } catch (IOException e) {
-            throw new RuntimeException("파일 저장 실패: " + path, e);
+            throw new RuntimeException("유저 파일 저장 실패: " + path, e);
         }
         return user;
     }
