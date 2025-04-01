@@ -4,10 +4,7 @@ import com.sprint.demo.spring_blog.entity.User;
 import com.sprint.demo.spring_blog.repository.UserRepo;
 import org.springframework.stereotype.Repository;
 
-import java.io.BufferedWriter;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -55,7 +52,23 @@ public class FileUserRepo implements UserRepo {
 
     @Override
     public Optional<User> findById(String id) {
-        return Optional.empty();
+        Path path = resolvePath(id);
+
+        // 사용자 존재하지 않으면 Optional.empty() 반환
+        if (Files.notExists(path)) {
+            return Optional.empty();
+        }
+
+        try (
+                FileInputStream fis = new FileInputStream(path.toFile());
+                ObjectInputStream ois = new ObjectInputStream(fis)
+        ) {
+            User user = (User) ois.readObject();
+            return Optional.of(user);
+        } catch (IOException | ClassNotFoundException e) {
+            e.printStackTrace();
+            return Optional.empty();
+        }
     }
 
     @Override

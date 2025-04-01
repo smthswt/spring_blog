@@ -2,10 +2,12 @@ package com.sprint.demo.spring_blog.service.imp;
 
 import com.sprint.demo.spring_blog.dto.user.*;
 import com.sprint.demo.spring_blog.entity.User;
+import com.sprint.demo.spring_blog.jwt.JwtUtil;
 import com.sprint.demo.spring_blog.repository.file.FilePostRepo;
 import com.sprint.demo.spring_blog.repository.file.FileUserRepo;
 import com.sprint.demo.spring_blog.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -15,7 +17,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class UserServiceImp implements UserService {
     private final FileUserRepo fileUserRepo;
-//    private final FilePostRepo filePostRepo;
+    private final JwtUtil jwtUtil;
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,}$");
     private static final String SPECIAL_CHARACTERS = "!@#$%^&*";
@@ -61,7 +63,10 @@ public class UserServiceImp implements UserService {
             return new UserCreateResponse(false, "비밀번호는 영문, 숫자, 특수문자(!@#$%^&*)를 각각 2자 이상 포함해야 합니다.");
         }
 
-        User user = new User(request.id(), request.password(), request.email(), request.nickname());
+        // 비밀번호 암호화
+        String hashedPassword = BCrypt.hashpw(request.password(), BCrypt.gensalt());
+
+        User user = new User(request.id(), hashedPassword, request.email(), request.nickname());
         fileUserRepo.saveUser(user);
 
         return new UserCreateResponse(true, "회원 가입이 완료되었습니다.");
@@ -69,7 +74,26 @@ public class UserServiceImp implements UserService {
 
     @Override
     public UserLoginResponse login(UserLoginRequest request) {
-        return null;
+        // 1. 사용자 조회
+        Optional<User> optionalUser = fileUserRepo.findById(request.id());
+
+        if (optionalUser.isEmpty()) {
+            return new UserLoginResponse(false, null, "존재하지 않는 사용자입니다.");
+        }
+
+        User user = optionalUser.get();
+
+        // 2. 비밀번호 검증 (BCrypt 사용)
+        boolean passwordMatch = BCrypt.checkpw(request.password(), user.getPassword());
+
+        if (!passwordMatch) {
+            return new UserLoginResponse(false, null, "비밀번호가 일치하지 않습니다.");
+        }
+
+        // 3. JWT 토큰 생성
+        String token = jwtUtil.generateToken(user.getId());
+
+        return new UserLoginResponse(true, token, "로그인 성공!");
     }
 
     @Override
